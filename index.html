@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analizador de Curva Histérica</title>
+    <script src="https://docs.opencv.org/4.5.5/opencv.js" defer></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 20px;
+        }
+        #image-container {
+            margin-top: 20px;
+        }
+        table {
+            width: 50%;
+            margin: auto;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        table, th, td {
+            border: 1px solid black;
+        }
+        th, td {
+            padding: 10px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <h1>Analizador de Curva Histérica</h1>
+    <input type="file" id="image-input" accept="image/*">
+    <div id="image-container">
+        <img id="uploaded-image" style="max-width: 100%; display: none;">
+    </div>
+    <table id="data-table">
+        <thead>
+            <tr>
+                <th>Carga Lateral (TF)</th>
+                <th>Desplazamiento (mm)</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Aquí se agregarán los datos extraídos -->
+        </tbody>
+    </table>
+    <script>
+        document.getElementById('image-input').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = document.getElementById('uploaded-image');
+                    img.src = e.target.result;
+                    img.style.display = 'block';
+                    img.onload = function() {
+                        processImage(img);
+                    };
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        function processImage(img) {
+            let src = cv.imread(img);
+            let gray = new cv.Mat();
+            let blurred = new cv.Mat();
+            let edges = new cv.Mat();
+            let contours = new cv.MatVector();
+            let hierarchy = new cv.Mat();
+            
+            cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0);
+            cv.GaussianBlur(gray, blurred, new cv.Size(5, 5), 0, 0, cv.BORDER_DEFAULT);
+            cv.Canny(blurred, edges, 50, 150);
+            
+            cv.findContours(edges, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+            
+            let data = [];
+            for (let i = 0; i < contours.size(); i++) {
+                let cnt = contours.get(i);
+                let approx = new cv.Mat();
+                cv.approxPolyDP(cnt, approx, 3, true);
+                for (let j = 0; j < approx.data32S.length; j += 2) {
+                    let x = approx.data32S[j];
+                    let y = approx.data32S[j + 1];
+                    if (x > 10 && y > 10) { // Filtro para eliminar ruido
+                        data.push({ x, y });
+                    }
+                }
+                approx.delete();
+            }
+            
+            updateTable(data);
+            console.log("Datos extraídos:", data);
+            
+            src.delete();
+            gray.delete();
+            blurred.delete();
+            edges.delete();
+            contours.delete();
+            hierarchy.delete();
+        }
+
+        function updateTable(data) {
+            let tableBody = document.querySelector("#data-table tbody");
+            tableBody.innerHTML = "";
+            data.forEach(point => {
+                let row = `<tr><td>${point.x}</td><td>${point.y}</td></tr>`;
+                tableBody.innerHTML += row;
+            });
+        }
+    </script>
+</body>
+</html>
