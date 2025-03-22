@@ -30,6 +30,9 @@
         canvas {
             display: none; /* Ocultar el canvas */
         }
+        .download-button {
+            margin-top: 20px;
+        }
     </style>
 </head>
 <body>
@@ -64,9 +67,15 @@
         </tbody>
     </table>
 
+    <div class="input-group">
+        <button class="download-button" onclick="descargarXML()" disabled id="downloadButton">Descargar Datos en XML</button>
+    </div>
+
     <canvas id="imageCanvas"></canvas>
 
     <script>
+        let puntos = []; // Variable global para almacenar los puntos
+
         function analizarImagen() {
             const input = document.getElementById("imageInput");
             const canvas = document.getElementById("imageCanvas");
@@ -106,7 +115,7 @@
                         const escalaY = canvas.height / (limiteYPositivo - limiteYNegativo);
 
                         // Detectar píxeles oscuros (simulando la curva)
-                        const puntos = [];
+                        puntos = []; // Reiniciar el array de puntos
                         for (let i = 0; i < data.length; i += 4) {
                             const r = data[i];
                             const g = data[i + 1];
@@ -138,11 +147,36 @@
                             row.appendChild(cellY);
                             tbody.appendChild(row);
                         });
+
+                        // Habilitar el botón de descarga
+                        document.getElementById("downloadButton").disabled = false;
                     };
                     img.src = event.target.result;
                 };
                 reader.readAsDataURL(input.files[0]);
             }
+        }
+
+        function descargarXML() {
+            // Crear el contenido XML
+            let xmlContent = '<?xml version="1.0" encoding="UTF-8"?>\n';
+            xmlContent += '<coordenadas>\n';
+            puntos.forEach(punto => {
+                xmlContent += `  <punto>\n`;
+                xmlContent += `    <desplazamiento>${punto.x}</desplazamiento>\n`;
+                xmlContent += `    <carga_lateral>${punto.y}</carga_lateral>\n`;
+                xmlContent += `  </punto>\n`;
+            });
+            xmlContent += '</coordenadas>';
+
+            // Crear un archivo XML y descargarlo
+            const blob = new Blob([xmlContent], { type: 'application/xml' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "coordenadas.xml";
+            a.click();
+            URL.revokeObjectURL(url);
         }
     </script>
 </body>
